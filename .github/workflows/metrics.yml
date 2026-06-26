@@ -1,0 +1,98 @@
+name: metrics
+
+on:
+  schedule:
+    - cron: "0 18 * * *"
+    - cron: "30 10 * * 1-5" # 17:30 WIB, weekdays
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  metrics:
+    runs-on: ubuntu-latest
+    name: generate-metrics
+    steps:
+      - uses: actions/checkout@v5
+
+      # kiri: commit 6 bulan
+      - uses: lowlighter/metrics@latest
+        with:
+          token: ${{ secrets.CONTRIB_TOKEN }}
+          user: eiffelputri
+          filename: metrics-calendar.svg
+          output_action: none
+          template: classic
+          base: ""
+          config_timezone: Asia/Jakarta
+          plugin_isocalendar: yes
+          plugin_isocalendar_duration: half-year
+          config_padding: 0, 0
+          extras_css: |
+            .background { fill: none; }
+            body { background: transparent; color: #c5beb5; }
+            foreignObject div { line-height: 1.2 !important; }
+            body, .field, text, tspan, .no-activity { fill: #c5beb5; color: #c5beb5; }
+            h2 { color: #d4af37 !important; }
+            .title, .fullname { color: #e3dccf !important; }
+            a { color: #d4af37 !important; }
+            .username, .subtitle, .comment, .contrib-footer { color: #8d8580 !important; }
+            [fill="#ebedf0"] { fill: #1c1618 !important; }
+            [fill="#9be9a8"] { fill: #5e0815 !important; }
+            [fill="#40c463"] { fill: #8e0c20 !important; }
+            [fill="#30a14e"] { fill: #c8102e !important; }
+            [fill="#216e39"] { fill: #d4af37 !important; }
+
+      # kanan: stat & bhs
+      - uses: lowlighter/metrics@latest
+        with:
+          token: ${{ secrets.CONTRIB_TOKEN }}
+          user: eiffelputri
+          filename: metrics-stats.svg
+          output_action: none
+          template: classic
+          base: header, activity, repositories
+          config_padding: 0, 16
+          config_timezone: Asia/Jakarta
+          plugin_languages: yes
+          plugin_languages_details: percentage
+          plugin_languages_limit: 6
+          plugin_languages_colors: "0:#d4af37, 1:#c8102e, 2:#e3dccf, 3:#8e0c20, 4:#7a6a45, 5:#8d8580"
+          extras_css: |
+            .background { fill: none; }
+            body { background: transparent; color: #c5beb5; }
+            foreignObject div { line-height: 1.2 !important; }
+            body, .field, text, tspan, .no-activity { fill: #c5beb5; color: #c5beb5; }
+            h2 { color: #d4af37 !important; }
+            .title, .fullname { color: #e3dccf !important; }
+            a { color: #d4af37 !important; }
+            .username, .subtitle, .comment, .contrib-footer { color: #8d8580 !important; }
+            [fill="#ebedf0"] { fill: #1c1618 !important; }
+            [fill="#9be9a8"] { fill: #5e0815 !important; }
+            [fill="#40c463"] { fill: #8e0c20 !important; }
+            [fill="#30a14e"] { fill: #c8102e !important; }
+            [fill="#216e39"] { fill: #d4af37 !important; }
+            .items-wrapper { display: flex; flex-wrap: wrap; }
+            .items-wrapper > section { flex: 0 0 100%; }
+            .items-wrapper > section.largeable { flex: 0 0 50%; }
+            .items-wrapper > section.largeable .row .row > section:first-child { display: none; }
+
+      - name: copy renders
+        run: cp /metrics_renders/metrics-calendar.svg /metrics_renders/metrics-stats.svg .github/metrics/
+
+      # bawah kalender: coding habits
+      - name: coding habits
+        env:
+          GH_TOKEN: ${{ secrets.CONTRIB_TOKEN }}
+        run: python3 .github/scripts/habits.py
+
+      # gabung ke initial commit, riwayat tetap 1
+      - name: amend & push
+        run: |
+          git add .github/metrics
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name "Eiffel"
+          git config user.email "eiffelputri@gmail.com"
+          GIT_COMMITTER_DATE="$(git log -1 --format=%cI)" git commit --amend --no-edit
+          git push --force-with-lease
